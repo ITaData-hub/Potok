@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  state-service-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: state-service-dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - ADMIN_SERVICE_URL=http://host.docker.internal:3000
+      - ADMIN_SERVICE_API_KEY=dev-state-key
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=pretty
+    ports:
+      - "3002:3002"
+      - "9231:9229"  # Debug port
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - /app/node_modules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - state-dev-network
+    command: npm run start:dev
+
+networks:
+  state-dev-network:
+    driver: bridge

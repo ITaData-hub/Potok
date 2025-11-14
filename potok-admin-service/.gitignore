@@ -1,0 +1,232 @@
+# .gitignore для NestJS Admin Service
+
+# ==================== Dependencies ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.yarn/
+.yarn-integrity
+
+# ==================== Build Output ====================
+dist/
+build/
+*.js.map
+*.d.ts.map
+out/
+tmp/
+temp/
+
+# ==================== Environment Variables ====================
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env*.local
+
+# ==================== TypeScript ====================
+*.tsbuildinfo
+.tscache/
+
+# ==================== Logs ====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+combined.log
+error.log
+
+# ==================== Testing ====================
+coverage/
+*.lcov
+.nyc_output/
+.jest/
+test-results/
+junit.xml
+
+# ==================== IDE & Editors ====================
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# WebStorm / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+
+# ==================== Operating System ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ==================== Docker ====================
+# Docker volumes
+.docker/
+docker-compose.override.yml
+docker-compose.*.yml
+!docker-compose.yml
+!docker-compose.production.yml
+
+# ==================== Database ====================
+# PostgreSQL
+*.sql
+*.dump
+*.backup
+*.bak
+/data/
+/pgdata/
+/postgres-data/
+database_backup_*
+
+# Redis
+dump.rdb
+appendonly.aof
+/redis-data/
+
+# Database migrations (опционально, если не хотите их коммитить)
+# migrations/*.ts
+# !migrations/*.example.ts
+
+# ==================== Cache & Temporary ====================
+.cache/
+*.cache
+.temp/
+.tmp/
+*.tmp
+*.swp
+.eslintcache
+.stylelintcache
+
+# ==================== Package Managers ====================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnp.*
+
+# ==================== Secrets & Keys ====================
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+secrets/
+.secrets/
+credentials/
+.credentials/
+*.env.vault
+
+# ==================== Backups ====================
+backup/
+backups/
+*.backup
+*.bak
+*.old
+
+# ==================== Uploads & Media ====================
+uploads/
+public/uploads/
+storage/
+files/
+
+# ==================== Documentation ====================
+# Если используете автогенерацию документации
+/docs/generated/
+/api-docs/
+
+# ==================== CI/CD ====================
+.gitlab-ci-local/
+.github/workflows/local/
+
+# ==================== Monitoring & Profiling ====================
+*.log
+*.trace
+*.profile
+.clinic/
+flamegraph.html
+isolate-*.log
+
+# ==================== NestJS Specific ====================
+.nest/
+.swc/
+
+# ==================== Swagger ====================
+swagger-static/
+api-spec.json
+api-spec.yaml
+
+# ==================== SSL Certificates ====================
+*.pem
+*.crt
+*.key
+ssl/
+certs/
+
+# ==================== Custom ====================
+# Добавьте сюда специфичные для проекта файлы
+TODO.md
+NOTES.md
+scratch.txt

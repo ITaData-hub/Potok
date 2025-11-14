@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  task-extraction-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: task_extraction_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../app:/app/app:ro
+    environment:
+      - HOST=localhost
+      - PORT=3004
+      - DEVICE=cpu
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/api/v1/monitoring/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - app-network
+
+  # Опционально: Prometheus для мониторинга
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - app-network
+    profiles:
+      - monitoring
+
+  # Опционально: Grafana для визуализации
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3005:3005"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - app-network
+    profiles:
+      - monitoring
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

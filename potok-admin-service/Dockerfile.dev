@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Установка системных зависимостей
+RUN apk add --no-cache python3 make g++
+
+# Копируем package files
+COPY package*.json ./
+
+# Устанавливаем все зависимости (включая dev)
+RUN npm install
+
+# Копируем конфигурационные файлы
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+
+# Expose порты
+EXPOSE 3000 9229
+
+# Запуск в dev режиме с hot reload
+CMD ["npm", "run", "start:dev"]

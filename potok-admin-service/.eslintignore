@@ -1,0 +1,18 @@
+# .eslintignore
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Generated
+*.d.ts
+*.js.map
+
+# Configuration
+*.config.js

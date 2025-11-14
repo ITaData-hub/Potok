@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: potok
+data:
+  host: "redis-service.potok.svc.cluster.local"
+  port: "6379"

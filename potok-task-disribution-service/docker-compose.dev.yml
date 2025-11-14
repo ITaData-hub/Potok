@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  task-service-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: task-service-dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - ADMIN_SERVICE_URL=http://host.docker.internal:3000
+      - ADMIN_SERVICE_API_KEY=dev-task-key
+      - STATE_SERVICE_URL=http://host.docker.internal:3002
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=pretty
+    ports:
+      - "3003:3003"
+      - "9232:9229"  # Debug port
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - /app/node_modules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - task-dev-network
+    command: npm run start:dev
+
+networks:
+  task-dev-network:
+    driver: bridge

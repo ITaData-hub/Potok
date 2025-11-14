@@ -1,0 +1,8 @@
+{
+    "model_name": "task_extraction_model",
+    "version": "20251110_140000",
+    "saved_at": "2025-11-10T14:00:00Z",
+    "vocab_size": 0,
+    "device": "cpu",
+    "description": "Обученная модель для извлечения задач"
+  }

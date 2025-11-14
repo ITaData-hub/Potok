@@ -1,0 +1,113 @@
+stages:
+  - lint
+  - test
+  - build
+  - security
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+
+.node_template: &node_template
+  image: node:20-alpine
+  cache:
+    paths:
+      - node_modules/
+  before_script:
+    - npm ci
+
+lint:
+  <<: *node_template
+  stage: lint
+  script:
+    - npm run lint
+
+unit-tests:
+  <<: *node_template
+  stage: test
+  services:
+    - redis:7-alpine
+  variables:
+    REDIS_LOCAL_HOST: redis
+    REDIS_LOCAL_PORT: 6379
+  script:
+    - npm run test:cov
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+  coverage: '/Lines\s*:\s*(\d+\.\d+)%/'
+
+integration-tests:
+  <<: *node_template
+  stage: test
+  services:
+    - redis:7-alpine
+  variables:
+    REDIS_LOCAL_HOST: redis
+    REDIS_LOCAL_PORT: 6379
+  script:
+    - npm run test:integration
+
+build-image:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+    - docker tag $IMAGE_TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - main
+    - develop
+
+security-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL $IMAGE_TAG
+  only:
+    - main
+    - develop
+
+deploy-staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+  script:
+    - ssh $STAGING_SERVER "docker pull $IMAGE_TAG && docker-compose -f /opt/app/docker-compose.yml up -d"
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+    - develop
+
+deploy-production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+  script:
+    - ssh $PRODUCTION_SERVER "docker pull $IMAGE_TAG && docker-compose -f /opt/app/docker-compose.yml up -d"
+  environment:
+    name: production
+    url: https://api.example.com
+  when: manual
+  only:
+    - main

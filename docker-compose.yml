@@ -1,0 +1,298 @@
+# БЕЗ version — это устарело в Compose V2
+
+services:
+  # ==================== PostgreSQL Database ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: potok-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5433}:5432"
+    networks:
+      - potok-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==================== Redis Cache ====================
+  redis:
+    image: redis:7-alpine
+    container_name: potok-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-6380}:6379"
+    networks:
+      - potok-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ==================== Admin Service ====================
+  admin-service:
+    build:
+      context: ./potok-admin-service
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV}
+    image: potok-admin-service:latest
+    container_name: potok-admin-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: 3000
+      TZ: ${TZ}
+      DATABASE_HOST: ${POSTGRES_HOST}
+      DATABASE_PORT: ${POSTGRES_PORT}
+      DATABASE_NAME: ${POSTGRES_DB}
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_FORMAT: ${LOG_FORMAT}
+      API_KEYS: ${API_KEYS}
+    ports:
+      - "${ADMIN_PORT}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - potok-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== State Management Service ====================
+  state-service:
+    build:
+      context: ./potok-state-management-service
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV}
+    image: potok-state-service:latest
+    container_name: potok-state-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      APP_PORT: 3002
+      TZ: ${TZ}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      GATEWAY_WEBHOOK_URL: ${GATEWAY_WEBHOOK_URL}
+      DEFAULT_TIMEZONE: ${TZ}
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_FORMAT: ${LOG_FORMAT}
+    ports:
+      - "${STATE_PORT}:3002"
+    depends_on:
+      admin-service:
+        condition: service_healthy
+    networks:
+      - potok-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== Gateway Service ====================
+  gateway-service:
+    build:
+      context: ./potok-gateway-service
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV}
+    image: potok-gateway-service:latest
+    container_name: potok-gateway-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: 3001
+      TZ: ${TZ}
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      STATE_SERVICE_URL: ${STATE_SERVICE_URL}
+      TASK_SERVICE_URL: ${TASK_SERVICE_URL}
+      ML_SERVICE_URL: ${ML_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
+      CIRCUIT_BREAKER_FAILURE_THRESHOLD: ${CIRCUIT_BREAKER_FAILURE_THRESHOLD}
+      CIRCUIT_BREAKER_SUCCESS_THRESHOLD: ${CIRCUIT_BREAKER_SUCCESS_THRESHOLD}
+      CIRCUIT_BREAKER_TIMEOUT: ${CIRCUIT_BREAKER_TIMEOUT}
+      THROTTLE_TTL: ${THROTTLE_TTL}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_FORMAT: ${LOG_FORMAT}
+    ports:
+      - "${GATEWAY_PORT}:3001"
+    depends_on:
+      admin-service:
+        condition: service_healthy
+      state-service:
+        condition: service_healthy
+    networks:
+      - potok-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== Task Distribution Service ====================
+  task-service:
+    build:
+      context: ./potok-task-disribution-service
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV}
+    image: potok-task-service:latest
+    container_name: potok-task-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: 3003
+      TZ: ${TZ}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      STATE_SERVICE_URL: ${STATE_SERVICE_URL}
+      LOG_LEVEL: ${LOG_LEVEL}
+      LOG_FORMAT: ${LOG_FORMAT}
+    ports:
+      - "${TASK_PORT}:3003"
+    depends_on:
+      admin-service:
+        condition: service_healthy
+      state-service:
+        condition: service_healthy
+    networks:
+      - potok-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== ML Task Extraction Service ====================
+  ml-service:
+    build:
+      context: ./potok-tast-exstracor-ml-service
+      dockerfile: Dockerfile
+    image: potok-ml-service:latest
+    container_name: potok-ml-service
+    restart: unless-stopped
+    environment:
+      # API Configuration
+      APP_NAME: "Task Extraction AI API"
+      APP_VERSION: "1.0.0"
+      HOST: "0.0.0.0"  # ← ВАЖНО: 0.0.0.0 для Docker
+      PORT: 3004
+      DEBUG: "false"
+      
+      # Paths (внутри контейнера)
+      MODEL_DIR: /app/app/data/models
+      TRAINING_DATA_DIR: /app/app/data/training
+      LOG_DIR: /app/app/data/logs
+      
+      # Model Configuration
+      DEVICE: cpu
+      MODEL_NAME: task_extraction_model
+      EMBEDDING_DIM: 100
+      HIDDEN_DIM: 128
+      DROPOUT: 0.3
+      NUM_HEADS: 4
+      NUM_LAYERS: 2
+      
+      # Training Configuration
+      DEFAULT_LEARNING_RATE: 0.001
+      DEFAULT_EPOCHS: 30
+      DEFAULT_BATCH_SIZE: 32
+      
+      # API Limits
+      MAX_BATCH_SIZE: 100
+      MAX_TEXT_LENGTH: 1000
+      RATE_LIMIT_PREDICTION: 100
+      RATE_LIMIT_TRAINING: 5
+      
+      # CORS
+      CORS_ORIGINS: '["*"]'
+      
+      # Security
+      API_KEY: ""
+      SECRET_KEY: "ml-service-secret-key-change-in-production"
+      
+      # Logging
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      
+      # Monitoring
+      ENABLE_METRICS: "true"
+      ENABLE_TRACING: "false"
+    
+    ports:
+      - "3004:3004"
+    
+    volumes:
+      # Монтируем модели с хоста для постоянного хранения
+      - ./potok-tast-exstracor-ml-service/app/data/models:/app/app/data/models:ro
+      - ml_logs:/app/app/data/logs
+    
+    networks:
+      - potok-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  potok-network:
+    driver: bridge
+    # Убрали ipam — Docker сам выберет свободную подсеть
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  ml_models:
+    driver: local
+  ml_logs:  # ← ДОБАВЬТЕ
+    driver: local
