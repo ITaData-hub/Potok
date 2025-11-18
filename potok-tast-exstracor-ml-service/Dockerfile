@@ -33,9 +33,13 @@ RUN touch /app/__init__.py && \
     touch /app/app/__init__.py
 
 # Create non-root user
-RUN useradd -m -u 1001 mluser && \
+RUN useradd -m -u 1001 mluser
+
+# Создать директории для логов и других данных ПЕРЕД переключением на non-root
+RUN mkdir -p /app/app/data/logs /app/app/data/models && \
     chown -R mluser:mluser /app
 
+# Теперь переключаемся на non-root пользователя
 USER mluser
 
 # Expose port
@@ -50,3 +54,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 # Start application
 CMD ["python", "-m", "app.main"]
+
